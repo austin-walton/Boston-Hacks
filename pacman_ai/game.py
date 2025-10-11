@@ -1,7 +1,8 @@
 import pygame
 import numpy as np
 from enum import Enum
-from typing import Tuple, List
+from pathlib import Path
+from typing import Optional, Tuple
 
 class Direction(Enum):
     UP = (0, -1)
@@ -11,24 +12,24 @@ class Direction(Enum):
     NONE = (0, 0)
 
 class PacmanGame:
-    def __init__(self, width=28, height=31, cell_size=20):
+    def __init__(self, width=28, height=31, cell_size=20, layout_path: Optional[str] = None):
         """
         Initialize the Pac-Man game environment
         
         Args:
-            width: Number of cells horizontally
-            height: Number of cells vertically  
+            width: Number of cells horizontally (used if no layout is provided)
+            height: Number of cells vertically (used if no layout is provided)
             cell_size: Size of each cell in pixels
+            layout_path: Optional path to a layout file to load
         """
-        self.width = width
-        self.height = height
         self.cell_size = cell_size
-        self.screen_width = width * cell_size
-        self.screen_height = height * cell_size
-        
+        base_path = Path(__file__).resolve().parent
+        layout = Path(layout_path) if layout_path is not None else base_path / "levels" / "original_pacman.txt"
+        self.layout_path = layout if layout.is_absolute() else base_path / layout
+
         # Game state
-        self.grid = np.zeros((height, width), dtype=int)  # 0=empty, 1=wall, 2=dot
-        self.pacman_pos = (14, 23)  # Starting position
+        self.grid = np.zeros((height, width), dtype=int)  # Placeholder until layout loads
+        self.pacman_pos = (width // 2, height // 2)  # Will be overwritten by layout parsing
         self.pacman_direction = Direction.NONE
         self.score = 0
         self.dots_collected = 0
@@ -41,43 +42,65 @@ class PacmanGame:
         self.YELLOW = (255, 255, 0)
         self.WHITE = (255, 255, 255)
         
-        # Initialize the maze
+        # Initialize the maze from the layout file
         self._create_maze()
         
     def _create_maze(self):
-        """Create a simple Pac-Man maze layout"""
-        # Create walls around the border
-        self.grid[0, :] = 1  # Top wall
-        self.grid[-1, :] = 1  # Bottom wall
-        self.grid[:, 0] = 1  # Left wall
-        self.grid[:, -1] = 1  # Right wall
-        
-        # Add some internal walls
-        # Top section
-        self.grid[3, 3:7] = 1
-        self.grid[3, 9:13] = 1
-        self.grid[3, 15:19] = 1
-        self.grid[3, 21:25] = 1
-        
-        # Middle section
-        self.grid[8, 3:25] = 1
-        self.grid[8, 12] = 0  # Opening
-        
-        # Lower section
-        self.grid[15, 3:7] = 1
-        self.grid[15, 9:13] = 1
-        self.grid[15, 15:19] = 1
-        self.grid[15, 21:25] = 1
-        
-        # Add dots everywhere there's no wall
-        for y in range(self.height):
-            for x in range(self.width):
-                if self.grid[y, x] == 0:
+        """Load the Pac-Man maze layout from file."""
+        if not self.layout_path.exists():
+            raise FileNotFoundError(f"Layout file not found: {self.layout_path}")
+
+        with self.layout_path.open("r", encoding="utf-8") as layout_file:
+            lines = [line.rstrip("\n") for line in layout_file if line.rstrip("\n")]
+
+        if not lines:
+            raise ValueError(f"Layout file '{self.layout_path}' is empty.")
+
+        row_width = len(lines[0])
+        if any(len(row) != row_width for row in lines):
+            raise ValueError("All layout rows must have the same length.")
+
+        self.height = len(lines)
+        self.width = row_width
+        self.grid = np.zeros((self.height, self.width), dtype=int)
+        self.total_dots = 0
+        self.dots_collected = 0
+        self.pacman_pos = None
+
+        for y, row in enumerate(lines):
+            for x, tile in enumerate(row):
+                if tile == "%":
+                    self.grid[y, x] = 1  # Wall
+                elif tile == "=":
+                    self.grid[y, x] = 1  # Ghost house door (treat as wall for now)
+                elif tile in {".", "o"}:
+                    self.grid[y, x] = 2  # Dot / power pellet
+                    self.total_dots += 1
+                elif tile == "1":
+                    self.grid[y, x] = 1  # Numeric wall fallback
+                elif tile == "2":
                     self.grid[y, x] = 2
                     self.total_dots += 1
-                    
-        # Remove dot from starting position
-        self.grid[self.pacman_pos[1], self.pacman_pos[0]] = 0
+                elif tile in {" ", "0"}:
+                    self.grid[y, x] = 0  # Empty space
+                elif tile in {"P", "p", "3"}:
+                    self.grid[y, x] = 0
+                    self.pacman_pos = (x, y)
+                else:
+                    # Treat all other characters (e.g., ghost spawns) as empty
+                    self.grid[y, x] = 0
+
+        if self.pacman_pos is None:
+            # Fallback to center if layout omitted Pac-Man start
+            fallback_pos = (self.width // 2, self.height // 2)
+            self.pacman_pos = fallback_pos
+            if self.grid[fallback_pos[1], fallback_pos[0]] == 2:
+                self.grid[fallback_pos[1], fallback_pos[0]] = 0
+                self.total_dots = max(0, self.total_dots - 1)
+
+        self.pacman_start = self.pacman_pos
+        self.screen_width = self.width * self.cell_size
+        self.screen_height = self.height * self.cell_size
         
     def get_state(self) -> np.ndarray:
         """
@@ -114,12 +137,17 @@ class PacmanGame:
         # Move pacman
         new_x = self.pacman_pos[0] + self.pacman_direction.value[0]
         new_y = self.pacman_pos[1] + self.pacman_direction.value[1]
-        
+
+        # Wrap horizontally through tunnels
+        if new_x < 0:
+            new_x = self.width - 1
+        elif new_x >= self.width:
+            new_x = 0
+
         # Check bounds and walls
-        if (0 <= new_x < self.width and 
-            0 <= new_y < self.height and 
-            self.grid[new_y, new_x] != 1):  # Not a wall
-            
+        if (0 <= new_y < self.height and
+            self.grid[new_y, new_x] != 1):
+
             self.pacman_pos = (new_x, new_y)
             
             # Check if pacman collected a dot
@@ -145,7 +173,11 @@ class PacmanGame:
     
     def reset(self):
         """Reset the game to initial state"""
-        self.__init__(self.width, self.height, self.cell_size)
+        self.score = 0
+        self.dots_collected = 0
+        self.game_over = False
+        self.pacman_direction = Direction.NONE
+        self._create_maze()
         
     def render(self, screen):
         """Render the game on pygame screen"""
