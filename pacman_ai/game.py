@@ -172,7 +172,7 @@ class PacmanGame:
             self.score += reward
                 
         else:
-            reward = -1  # Penalty for hitting wall or going out of bounds
+            reward = -0.1  # Small penalty for hitting wall or going out of bounds
             self.score += reward
             
         # Check if game is over (all dots collected)

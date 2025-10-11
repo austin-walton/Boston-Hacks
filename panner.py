@@ -33,9 +33,6 @@ def main():
         render=not args.no_render
     )
     
-    # Test the trained agent
-    print("\nTesting trained agent...")
-    test_agent(agent, agent_type=args.agent, episodes=3)
 
 if __name__ == "__main__":
     main()

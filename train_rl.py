@@ -15,7 +15,7 @@ def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100
         render: Whether to show the game during training
         save_interval: Save model every N episodes
         use_log_scale: If True, plot log-transformed scores for clearer trends
-        separate_plots: If True, create individual charts for score and average score
+        separate_plots: If True, create separate plots for scores and averages
     """
     
     # Initialize game and agent
@@ -108,76 +108,33 @@ def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100
     if agent_type == 'dqn':
         agent.update_target_network()
     
-    # Plot training results
-    scores_arr = np.asarray(scores, dtype=float)
-    avg_scores_arr = np.asarray(avg_scores, dtype=float)
-
-    if use_log_scale:
-        # Use log1p to safely handle zero scores while compressing large values.
-        safe_scores = np.maximum(scores_arr, 0)
-        plot_scores = np.log1p(safe_scores)
-        plot_avg_scores = np.log1p(np.maximum(avg_scores_arr, 0))
-        score_ylabel = 'log1p(Score)'
-        avg_ylabel = 'log1p(Average Score)'
-    else:
-        plot_scores = scores_arr
-        plot_avg_scores = avg_scores_arr
-        score_ylabel = 'Score'
-        avg_ylabel = 'Average Score'
-
-    episode_indices = np.arange(len(plot_scores))
-
-    if separate_plots:
-        plt.figure(figsize=(8, 4))
-        plt.plot(episode_indices, plot_scores, label='Score')
-        if len(plot_scores) >= 2:
-            score_fit_coeffs = np.polyfit(episode_indices, plot_scores, 1)
-            score_fit_line = np.poly1d(score_fit_coeffs)(episode_indices)
-            plt.plot(episode_indices, score_fit_line, '--', label='Score Linear Fit')
-        plt.title('Score vs. Episode')
-        plt.xlabel('Episode')
-        plt.ylabel(score_ylabel)
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig('training_results_score.png')
-
-        plt.figure(figsize=(8, 4))
-        plt.plot(episode_indices, plot_avg_scores, label='Average Score')
-        if len(plot_avg_scores) >= 2:
-            avg_fit_coeffs = np.polyfit(episode_indices, plot_avg_scores, 1)
-            avg_fit_line = np.poly1d(avg_fit_coeffs)(episode_indices)
-            plt.plot(episode_indices, avg_fit_line, '--', label='Average Score Linear Fit')
-        plt.title('Average Score vs. Episode')
-        plt.xlabel('Episode')
-        plt.ylabel(avg_ylabel)
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig('training_results_average.png')
-
-        plt.show()
-    else:
-        plt.figure(figsize=(10, 4))
-        plt.plot(episode_indices, plot_scores, label='Score')
-        plt.plot(episode_indices, plot_avg_scores, label='Average Score')
-
-        if len(plot_scores) >= 2:
-            score_fit_coeffs = np.polyfit(episode_indices, plot_scores, 1)
-            score_fit_line = np.poly1d(score_fit_coeffs)(episode_indices)
-            plt.plot(episode_indices, score_fit_line, '--', label='Score Linear Fit')
-
-        if len(plot_avg_scores) >= 2:
-            avg_fit_coeffs = np.polyfit(episode_indices, plot_avg_scores, 1)
-            avg_fit_line = np.poly1d(avg_fit_coeffs)(episode_indices)
-            plt.plot(episode_indices, avg_fit_line, '--', label='Avg Score Linear Fit')
-
-        plt.title('Score and Average Score vs. Episode')
-        plt.xlabel('Episode')
-        plt.ylabel(score_ylabel)
-        plt.legend()
-        
-        plt.tight_layout()
-        plt.savefig('training_results.png')
-        plt.show()
+    # Clean up pygame BEFORE showing graphs
+    if render:
+        pygame.quit()
+        pygame.display.quit()  # Force close any display windows
+    
+    # Plot training results - ONE window with TWO subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    
+    episodes_range = range(len(scores))
+    
+    # Plot 1: Individual Episode Scores
+    ax1.plot(episodes_range, scores, alpha=0.7, color='lightblue', linewidth=0.8)
+    ax1.set_xlabel('Episode')
+    ax1.set_ylabel('Score')
+    ax1.set_title('Individual Episode Scores')
+    ax1.grid(True, alpha=0.3)
+    
+    # Plot 2: Average Scores
+    ax2.plot(episodes_range, avg_scores, linewidth=2, color='darkblue')
+    ax2.set_xlabel('Episode')
+    ax2.set_ylabel('Average Score')
+    ax2.set_title('Average Score (100-episode rolling)')
+    ax2.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig('training_results.png', dpi=300, bbox_inches='tight')
+    plt.show()
     
     # Save final model
     if agent_type == 'dqn':
@@ -186,7 +143,7 @@ def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100
     print("Training completed!")
     return agent
 
-def test_agent(agent, agent_type='dqn', episodes=5):
+def test_agent(agent, agent_type='dqn', episodes=5, render=False):
     """Test trained agent without exploration"""
     game = PacmanGame()
     
@@ -195,11 +152,12 @@ def test_agent(agent, agent_type='dqn', episodes=5):
     else:
         agent.epsilon = 0
     
-    # Initialize pygame for rendering
-    pygame.init()
-    screen = pygame.display.set_mode((game.screen_width, game.screen_height))
-    pygame.display.set_caption("Pac-Man ML Testing")
-    clock = pygame.time.Clock()
+    if render:
+        # Initialize pygame for rendering
+        pygame.init()
+        screen = pygame.display.set_mode((game.screen_width, game.screen_height))
+        pygame.display.set_caption("Trained Pac-Man AI Demo")
+        clock = pygame.time.Clock()
     
     for episode in range(episodes):
         game.reset()
@@ -214,20 +172,24 @@ def test_agent(agent, agent_type='dqn', episodes=5):
             total_reward += reward
             steps += 1
             
-            # Render
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    return
-            
-            game.render(screen)
-            pygame.display.flip()
-            clock.tick(10)  # Slower for viewing
+            # Render if requested
+            if render:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        return
+                
+                game.render(screen)
+                pygame.display.flip()
+                clock.tick(15)  # Good speed for viewing
         
-        print(f"Test Episode {episode + 1}: Score = {total_reward}, Steps = {steps}")
-        time.sleep(1)  # Pause between episodes
+        print(f"Test Episode {episode + 1}: Score = {total_reward:.1f}, Steps = {steps}")
+        if render and episode < episodes - 1:  # Don't pause after last episode
+            time.sleep(0.5)  # Short pause between episodes
     
-    pygame.quit()
+    if render:
+        pygame.quit()
+
 
 if __name__ == "__main__":
     # Create models directory
@@ -236,6 +198,3 @@ if __name__ == "__main__":
     
     # Train the agent
     agent = train_pacman(episodes=500, agent_type='dqn', render=True)
-    
-    # Test the trained agent
-    test_agent(agent, agent_type='dqn', episodes=3)

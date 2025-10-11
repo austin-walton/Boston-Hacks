@@ -25,12 +25,6 @@ def main():
         separate_plots=True
     )
     
-    print("\n🎯 Training complete! Now showing the trained AI in action...")
-    time.sleep(2)
-    
-    # Test the trained agent
-    test_agent(agent, agent_type='qlearning', episodes=3)
-    
     print("\n✨ Demo complete! The AI has learned to collect dots optimally.")
     print("Check 'training_results.png' for detailed performance graphs.")
 
