@@ -106,6 +106,7 @@ class PacmanGame:
         self.pacman_start = self.pacman_pos
         self.screen_width = self.width * self.cell_size
         self.screen_height = self.height * self.cell_size
+        self.visited_positions = {self.pacman_pos}
         
     def get_state(self) -> np.ndarray:
         """
@@ -154,19 +155,25 @@ class PacmanGame:
             self.grid[new_y, new_x] != 1):
 
             self.pacman_pos = (new_x, new_y)
+            tile_key = self.pacman_pos
             
             # Check if pacman collected a dot
             tile_value = self.grid[new_y, new_x]
             if tile_value in (2, 4):
                 self.grid[new_y, new_x] = 0
-                self.score += 10
                 self.dots_collected += 1
                 reward = 10
+            elif tile_key in self.visited_positions:
+                reward = -0.1  # Penalty for revisiting a cleared spot
             else:
-                reward = -0.1  # Small penalty for not collecting dots
+                reward = 0  # Neutral move on an unvisited empty space
+
+            self.visited_positions.add(tile_key)
+            self.score += reward
                 
         else:
             reward = -1  # Penalty for hitting wall or going out of bounds
+            self.score += reward
             
         # Check if game is over (all dots collected)
         done = self.dots_collected >= self.total_dots
@@ -174,6 +181,7 @@ class PacmanGame:
         if done:
             self.game_over = True
             reward += 100  # Bonus for completing the level
+            self.score += 100
             
         return self.get_state(), reward, done
     
@@ -215,5 +223,5 @@ class PacmanGame:
         
         # Draw score
         font = pygame.font.Font(None, 36)
-        score_text = font.render(f"Score: {self.score}", True, self.WHITE)
+        score_text = font.render(f"Score: {self.score:.1f}", True, self.WHITE)
         screen.blit(score_text, (10, 10))

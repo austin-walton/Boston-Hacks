@@ -5,7 +5,7 @@ from pacman_ai.game import PacmanGame
 from pacman_ai.agent import DQNAgent, SimpleQAgent
 import time
 
-def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100):
+def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100, use_log_scale=False, show_epsilon_plot=False):
     """
     Train Pac-Man agent with visual display
     
@@ -14,6 +14,8 @@ def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100
         agent_type: 'dqn' or 'qlearning'
         render: Whether to show the game during training
         save_interval: Save model every N episodes
+        use_log_scale: If True, plot log-transformed scores for clearer trends
+        show_epsilon_plot: Deprecated parameter retained for compatibility.
     """
     
     # Initialize game and agent
@@ -94,7 +96,6 @@ def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100
         if episode % 10 == 0:
             print(f"Episode {episode}, Score: {total_reward:.1f}, "
                   f"Avg Score: {avg_scores[-1]:.1f}, "
-                  f"Epsilon: {agent.epsilon:.3f}, "
                   f"Steps: {steps}")
         
         # Save model
@@ -108,27 +109,38 @@ def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100
         agent.update_target_network()
     
     # Plot training results
-    plt.figure(figsize=(12, 4))
-    
-    plt.subplot(1, 3, 1)
-    plt.plot(scores)
-    plt.plot(avg_scores)
-    plt.title('Training Scores')
+    scores_arr = np.asarray(scores, dtype=float)
+    avg_scores_arr = np.asarray(avg_scores, dtype=float)
+
+    if use_log_scale:
+        # Use log1p to safely handle zero scores while compressing large values.
+        safe_scores = np.maximum(scores_arr, 0)
+        plot_scores = np.log1p(safe_scores)
+        score_ylabel = 'log1p(Score)'
+    else:
+        plot_scores = scores_arr
+        score_ylabel = 'Score'
+
+    plt.figure(figsize=(10, 4))
+
+    episode_indices = np.arange(len(plot_scores))
+    plt.plot(episode_indices, plot_scores, label='Score')
+    plt.plot(episode_indices, avg_scores_arr, label='Average Score')
+
+    if len(plot_scores) >= 2:
+        score_fit_coeffs = np.polyfit(episode_indices, plot_scores, 1)
+        score_fit_line = np.poly1d(score_fit_coeffs)(episode_indices)
+        plt.plot(episode_indices, score_fit_line, '--', label='Score Linear Fit')
+
+    if len(avg_scores_arr) >= 2:
+        avg_fit_coeffs = np.polyfit(episode_indices, avg_scores_arr, 1)
+        avg_fit_line = np.poly1d(avg_fit_coeffs)(episode_indices)
+        plt.plot(episode_indices, avg_fit_line, '--', label='Avg Score Linear Fit')
+
+    plt.title('Score and Average Score vs. Episode')
     plt.xlabel('Episode')
     plt.ylabel('Score')
-    plt.legend(['Score', '100-Episode Average'])
-    
-    plt.subplot(1, 3, 2)
-    plt.plot(epsilons)
-    plt.title('Exploration Rate (Epsilon)')
-    plt.xlabel('Episode')
-    plt.ylabel('Epsilon')
-    
-    plt.subplot(1, 3, 3)
-    plt.plot(avg_scores)
-    plt.title('Average Score (Last 100 Episodes)')
-    plt.xlabel('Episode')
-    plt.ylabel('Average Score')
+    plt.legend()
     
     plt.tight_layout()
     plt.savefig('training_results.png')
