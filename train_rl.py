@@ -5,7 +5,7 @@ from pacman_ai.game import PacmanGame
 from pacman_ai.agent import DQNAgent, SimpleQAgent
 import time
 
-def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100, use_log_scale=False, show_epsilon_plot=False):
+def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100, use_log_scale=False, separate_plots=False):
     """
     Train Pac-Man agent with visual display
     
@@ -15,7 +15,7 @@ def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100
         render: Whether to show the game during training
         save_interval: Save model every N episodes
         use_log_scale: If True, plot log-transformed scores for clearer trends
-        show_epsilon_plot: Deprecated parameter retained for compatibility.
+        separate_plots: If True, create individual charts for score and average score
     """
     
     # Initialize game and agent
@@ -116,35 +116,68 @@ def train_pacman(episodes=1000, agent_type='dqn', render=True, save_interval=100
         # Use log1p to safely handle zero scores while compressing large values.
         safe_scores = np.maximum(scores_arr, 0)
         plot_scores = np.log1p(safe_scores)
+        plot_avg_scores = np.log1p(np.maximum(avg_scores_arr, 0))
         score_ylabel = 'log1p(Score)'
+        avg_ylabel = 'log1p(Average Score)'
     else:
         plot_scores = scores_arr
+        plot_avg_scores = avg_scores_arr
         score_ylabel = 'Score'
-
-    plt.figure(figsize=(10, 4))
+        avg_ylabel = 'Average Score'
 
     episode_indices = np.arange(len(plot_scores))
-    plt.plot(episode_indices, plot_scores, label='Score')
-    plt.plot(episode_indices, avg_scores_arr, label='Average Score')
 
-    if len(plot_scores) >= 2:
-        score_fit_coeffs = np.polyfit(episode_indices, plot_scores, 1)
-        score_fit_line = np.poly1d(score_fit_coeffs)(episode_indices)
-        plt.plot(episode_indices, score_fit_line, '--', label='Score Linear Fit')
+    if separate_plots:
+        plt.figure(figsize=(8, 4))
+        plt.plot(episode_indices, plot_scores, label='Score')
+        if len(plot_scores) >= 2:
+            score_fit_coeffs = np.polyfit(episode_indices, plot_scores, 1)
+            score_fit_line = np.poly1d(score_fit_coeffs)(episode_indices)
+            plt.plot(episode_indices, score_fit_line, '--', label='Score Linear Fit')
+        plt.title('Score vs. Episode')
+        plt.xlabel('Episode')
+        plt.ylabel(score_ylabel)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig('training_results_score.png')
 
-    if len(avg_scores_arr) >= 2:
-        avg_fit_coeffs = np.polyfit(episode_indices, avg_scores_arr, 1)
-        avg_fit_line = np.poly1d(avg_fit_coeffs)(episode_indices)
-        plt.plot(episode_indices, avg_fit_line, '--', label='Avg Score Linear Fit')
+        plt.figure(figsize=(8, 4))
+        plt.plot(episode_indices, plot_avg_scores, label='Average Score')
+        if len(plot_avg_scores) >= 2:
+            avg_fit_coeffs = np.polyfit(episode_indices, plot_avg_scores, 1)
+            avg_fit_line = np.poly1d(avg_fit_coeffs)(episode_indices)
+            plt.plot(episode_indices, avg_fit_line, '--', label='Average Score Linear Fit')
+        plt.title('Average Score vs. Episode')
+        plt.xlabel('Episode')
+        plt.ylabel(avg_ylabel)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig('training_results_average.png')
 
-    plt.title('Score and Average Score vs. Episode')
-    plt.xlabel('Episode')
-    plt.ylabel('Score')
-    plt.legend()
-    
-    plt.tight_layout()
-    plt.savefig('training_results.png')
-    plt.show()
+        plt.show()
+    else:
+        plt.figure(figsize=(10, 4))
+        plt.plot(episode_indices, plot_scores, label='Score')
+        plt.plot(episode_indices, plot_avg_scores, label='Average Score')
+
+        if len(plot_scores) >= 2:
+            score_fit_coeffs = np.polyfit(episode_indices, plot_scores, 1)
+            score_fit_line = np.poly1d(score_fit_coeffs)(episode_indices)
+            plt.plot(episode_indices, score_fit_line, '--', label='Score Linear Fit')
+
+        if len(plot_avg_scores) >= 2:
+            avg_fit_coeffs = np.polyfit(episode_indices, plot_avg_scores, 1)
+            avg_fit_line = np.poly1d(avg_fit_coeffs)(episode_indices)
+            plt.plot(episode_indices, avg_fit_line, '--', label='Avg Score Linear Fit')
+
+        plt.title('Score and Average Score vs. Episode')
+        plt.xlabel('Episode')
+        plt.ylabel(score_ylabel)
+        plt.legend()
+        
+        plt.tight_layout()
+        plt.savefig('training_results.png')
+        plt.show()
     
     # Save final model
     if agent_type == 'dqn':

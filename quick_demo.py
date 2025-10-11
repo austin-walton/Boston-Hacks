@@ -21,8 +21,8 @@ def main():
         agent_type='qlearning',  # Faster than DQN
         render=True,
         save_interval=50,
-        use_log_scale=True,
-        show_epsilon_plot=False
+        use_log_scale=False,
+        separate_plots=True
     )
     
     print("\n🎯 Training complete! Now showing the trained AI in action...")
