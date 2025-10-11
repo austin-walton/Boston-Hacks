@@ -41,6 +41,7 @@ class PacmanGame:
         self.BLUE = (0, 0, 255)
         self.YELLOW = (255, 255, 0)
         self.WHITE = (255, 255, 255)
+        self.RED = (255, 0, 0)
         
         # Initialize the maze from the layout file
         self._create_maze()
@@ -56,9 +57,10 @@ class PacmanGame:
         if not lines:
             raise ValueError(f"Layout file '{self.layout_path}' is empty.")
 
-        row_width = len(lines[0])
+        row_width = max(len(row) for row in lines)
+        # Layouts may have ragged edges; pad with spaces so the grid stays rectangular.
         if any(len(row) != row_width for row in lines):
-            raise ValueError("All layout rows must have the same length.")
+            lines = [row.ljust(row_width) for row in lines]
 
         self.height = len(lines)
         self.width = row_width
@@ -73,8 +75,11 @@ class PacmanGame:
                     self.grid[y, x] = 1  # Wall
                 elif tile == "=":
                     self.grid[y, x] = 1  # Ghost house door (treat as wall for now)
-                elif tile in {".", "o"}:
-                    self.grid[y, x] = 2  # Dot / power pellet
+                elif tile == ".":
+                    self.grid[y, x] = 2  # Dot
+                    self.total_dots += 1
+                elif tile in {"o", "O", "/"}:
+                    self.grid[y, x] = 4  # Power pellet
                     self.total_dots += 1
                 elif tile == "1":
                     self.grid[y, x] = 1  # Numeric wall fallback
@@ -94,7 +99,7 @@ class PacmanGame:
             # Fallback to center if layout omitted Pac-Man start
             fallback_pos = (self.width // 2, self.height // 2)
             self.pacman_pos = fallback_pos
-            if self.grid[fallback_pos[1], fallback_pos[0]] == 2:
+            if self.grid[fallback_pos[1], fallback_pos[0]] in (2, 4):
                 self.grid[fallback_pos[1], fallback_pos[0]] = 0
                 self.total_dots = max(0, self.total_dots - 1)
 
@@ -151,7 +156,8 @@ class PacmanGame:
             self.pacman_pos = (new_x, new_y)
             
             # Check if pacman collected a dot
-            if self.grid[new_y, new_x] == 2:
+            tile_value = self.grid[new_y, new_x]
+            if tile_value in (2, 4):
                 self.grid[new_y, new_x] = 0
                 self.score += 10
                 self.dots_collected += 1
@@ -195,6 +201,11 @@ class PacmanGame:
                     center = (x * self.cell_size + self.cell_size // 2,
                              y * self.cell_size + self.cell_size // 2)
                     pygame.draw.circle(screen, self.WHITE, center, 2)
+                elif self.grid[y, x] == 4:  # Power pellet
+                    center = (x * self.cell_size + self.cell_size // 2,
+                             y * self.cell_size + self.cell_size // 2)
+                    radius = max(4, self.cell_size // 3)
+                    pygame.draw.circle(screen, self.RED, center, radius)
         
         # Draw pacman
         pacman_rect = pygame.Rect(self.pacman_pos[0] * self.cell_size + 2,
