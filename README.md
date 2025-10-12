@@ -1,23 +1,27 @@
-# Pac-Man Machine Learning Project 
+# 🎮 Pac-Man AI: Reinforcement Learning Project
 
-# Boston Hacks Hackathon October 11 2025
-# Austin Walton and August Amhed
+**Created by Austin Walton (apwalton@bu.edu) and August Ahmed (aulmer@bu.edu)**
 
-A reinforcement learning implementation that trains Pac-Man to collect dots optimally using Deep Q-Networks (DQN) or Q-Learning.
+**Boston Hacks Hackathon - Boston University, October 11, 2025**
 
-## Project Overview
+## What We Built
 
-This project implements a Pac-Man game environment where an AI agent learns to collect all dots in the most efficient way possible. The training process is visualized in real-time, showing the agent's learning progress as it improves its strategy.
-
+We created an AI agent that learns to play Pac-Man using reinforcement learning. The AI starts by making random moves but gradually learns the optimal strategy to collect dots and complete levels efficiently.
 
 ## How It Works
 
-### Reinforcement Learning Approach
-- **State Space**: Grid representation of the maze (walls, dots, pacman position)
-- **Action Space**: 4 directions (up, down, left, right)
-- **Reward System**:
-  - +10 for collecting a dot
-  - +100 bonus for completing the level
-  - -0.1 for each step (encourages efficiency)
-  - -1 for hitting walls
+- **The AI Agent**: Uses Q-Learning algorithm to learn from trial and error
+- **The Game Environment**: Custom-built Pac-Man game with a classic maze layout
+- **Learning Process**: The AI plays hundreds of games, and it's given rewards for collecting dots and penalties for inefficient moves
+- **Visual Training**: You can watch the AI learn in real-time as it improves its strategy
+
+## What You'll See
+
+1. **Random Behavior**: Initially, the AI moves randomly and performs poorly
+2. **Learning Phase**: Over time, it discovers better strategies and collects more dots
+4. **Performance Graphs**: Visual charts showing the AI's improvement over time
+
+## Technical Approach
+
+The game environment was built from scratch using Pygame, creating a custom Pac-Man maze with walls, dots, and power pellets. Each game state is represented as a grid where the AI tracks its position and the remaining collectible items. We implemented Q-Learning, a reinforcement learning algorithm where the AI builds a "Q-table" that stores the expected rewards for each possible action in each game state. The reward system encourages efficient dot collection while penalizing wasted moves and revisiting cleared areas. During training, the AI starts with completely random actions but gradually learns optimal paths through trial and error, updating its Q-table after each game to improve future performance.
 
