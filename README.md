@@ -1,6 +1,6 @@
 # 🎮 Pac-Man AI: Reinforcement Learning Project
 
-**Created by Austin Walton (apwalton@bu.edu) and August Ahmed (aulmer@bu.edu)**
+**Created by Austin Walton (apwalton@bu.edu) and August Ahmed (augahmed@bu.edu)**
 
 **Boston Hacks Hackathon - Boston University, October 11, 2025**
 
